@@ -3,32 +3,32 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
-import Transfer from '@/pages/Transfer'
-import * as api from '@/services/api'
+import { TransferPage } from '@/features/transfers'
+import * as transferService from '@/features/transfers/services/transferService'
 
-// Mock Zustand store
 const mockUpdateBalance = vi.fn()
 let mockBalance = 5000
 
-vi.mock('@/store/authStore', () => ({
+vi.mock('@/features/auth', () => ({
   useAuthStore: (selector: (s: { balance: number; updateBalance: typeof mockUpdateBalance }) => unknown) =>
     selector({ balance: mockBalance, updateBalance: mockUpdateBalance }),
 }))
 
-// Mock toast
-vi.mock('@/components/ui/toaster', () => ({
+vi.mock('@/shared/components/ui/toaster', () => ({
   toast: vi.fn(),
 }))
 
 function renderTransfer() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(
+  const user = userEvent.setup()
+  const utils = render(
     <QueryClientProvider client={qc}>
       <MemoryRouter>
-        <Transfer />
+        <TransferPage />
       </MemoryRouter>
     </QueryClientProvider>
   )
+  return { ...utils, user }
 }
 
 describe('Transfer page', () => {
@@ -41,13 +41,14 @@ describe('Transfer page', () => {
     renderTransfer()
     expect(screen.getByText(/Transferência PIX/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Nome do destinatário/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/Chave PIX/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/Tipo de Chave PIX/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Chave PIX$/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Valor/i)).toBeInTheDocument()
   })
 
   it('shows validation errors when submitting empty form', async () => {
-    renderTransfer()
-    await userEvent.click(screen.getByRole('button', { name: /Continuar/i }))
+    const { user } = renderTransfer()
+    await user.click(screen.getByRole('button', { name: /Continuar/i }))
     await waitFor(() => {
       expect(screen.getByText(/Nome deve ter ao menos/i)).toBeInTheDocument()
       expect(screen.getByText(/Chave inválida/i)).toBeInTheDocument()
@@ -56,19 +57,20 @@ describe('Transfer page', () => {
   })
 
   it('shows insufficient balance warning', async () => {
-    renderTransfer()
-    await userEvent.type(screen.getByLabelText(/Valor/i), '9999')
+    const { user } = renderTransfer()
+    await user.type(screen.getByLabelText(/Valor/i), '9999')
     await waitFor(() => {
       expect(screen.getByText(/Saldo insuficiente/i)).toBeInTheDocument()
     })
   })
 
   it('advances to confirm step on valid input', async () => {
-    renderTransfer()
-    await userEvent.type(screen.getByLabelText(/Nome do destinatário/i), 'Ana Costa')
-    await userEvent.type(screen.getByLabelText(/Chave PIX/i), 'ana@email.com')
-    await userEvent.type(screen.getByLabelText(/Valor/i), '100')
-    await userEvent.click(screen.getByRole('button', { name: /Continuar/i }))
+    const { user } = renderTransfer()
+    await user.type(screen.getByLabelText(/Nome do destinatário/i), 'Ana Costa')
+    await user.selectOptions(screen.getByLabelText(/Tipo de Chave PIX/i), 'email')
+    await user.type(screen.getByLabelText(/^Chave PIX$/i), 'ana@email.com')
+    await user.type(screen.getByLabelText(/Valor/i), '100')
+    await user.click(screen.getByRole('button', { name: /Continuar/i }))
     await waitFor(() => {
       expect(screen.getByText(/Confirmar transferência/i)).toBeInTheDocument()
       expect(screen.getByText('Ana Costa')).toBeInTheDocument()
@@ -76,15 +78,16 @@ describe('Transfer page', () => {
   })
 
   it('completes transfer and shows success screen', async () => {
-    vi.spyOn(api, 'performTransfer').mockResolvedValue({ newBalance: 4900 })
+    vi.spyOn(transferService, 'performTransfer').mockResolvedValue({ newBalance: 4900 })
 
-    renderTransfer()
-    await userEvent.type(screen.getByLabelText(/Nome do destinatário/i), 'Carlos Lima')
-    await userEvent.type(screen.getByLabelText(/Chave PIX/i), 'carlos@pix.com')
-    await userEvent.type(screen.getByLabelText(/Valor/i), '100')
-    await userEvent.click(screen.getByRole('button', { name: /Continuar/i }))
+    const { user } = renderTransfer()
+    await user.type(screen.getByLabelText(/Nome do destinatário/i), 'Carlos Lima')
+    await user.selectOptions(screen.getByLabelText(/Tipo de Chave PIX/i), 'email')
+    await user.type(screen.getByLabelText(/^Chave PIX$/i), 'carlos@pix.com')
+    await user.type(screen.getByLabelText(/Valor/i), '100')
+    await user.click(screen.getByRole('button', { name: /Continuar/i }))
     await waitFor(() => screen.getByText(/Confirmar transferência/i))
-    await userEvent.click(screen.getByRole('button', { name: /Confirmar/i }))
+    await user.click(screen.getByRole('button', { name: /Confirmar/i }))
 
     await waitFor(() => {
       expect(screen.getByText(/Transferência realizada/i)).toBeInTheDocument()
@@ -93,16 +96,17 @@ describe('Transfer page', () => {
   })
 
   it('shows error toast on API failure', async () => {
-    const { toast } = await import('@/components/ui/toaster')
-    vi.spyOn(api, 'performTransfer').mockRejectedValue(new Error('Saldo insuficiente'))
+    const { toast } = await import('@/shared/components/ui/toaster')
+    vi.spyOn(transferService, 'performTransfer').mockRejectedValue(new Error('Saldo insuficiente'))
 
-    renderTransfer()
-    await userEvent.type(screen.getByLabelText(/Nome do destinatário/i), 'Bob Falha')
-    await userEvent.type(screen.getByLabelText(/Chave PIX/i), 'bob@pix.com')
-    await userEvent.type(screen.getByLabelText(/Valor/i), '50')
-    await userEvent.click(screen.getByRole('button', { name: /Continuar/i }))
+    const { user } = renderTransfer()
+    await user.type(screen.getByLabelText(/Nome do destinatário/i), 'Bob Falha')
+    await user.selectOptions(screen.getByLabelText(/Tipo de Chave PIX/i), 'email')
+    await user.type(screen.getByLabelText(/^Chave PIX$/i), 'bob@pix.com')
+    await user.type(screen.getByLabelText(/Valor/i), '50')
+    await user.click(screen.getByRole('button', { name: /Continuar/i }))
     await waitFor(() => screen.getByText(/Confirmar transferência/i))
-    await userEvent.click(screen.getByRole('button', { name: /Confirmar/i }))
+    await user.click(screen.getByRole('button', { name: /Confirmar/i }))
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith(
