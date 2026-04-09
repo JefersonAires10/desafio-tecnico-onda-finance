@@ -2,7 +2,6 @@ import { Loader2 } from 'lucide-react'
 import { formatCurrency } from '@/shared/lib/utils'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent } from '@/shared/components/ui/card'
-import type { TransferFormData } from '../schemas/transferSchema'
 import type { TransferConfirmProps } from '@/shared/types/transaction'
 
 function Row({

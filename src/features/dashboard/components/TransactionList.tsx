@@ -3,7 +3,7 @@ import { formatCurrency, formatDate } from '@/shared/lib/utils'
 import { Badge } from '@/shared/components/ui/badge'
 import { Skeleton } from '@/shared/components/ui/skeleton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
-import type { Transaction } from '@/shared/types'
+import type { Transaction } from '@/shared/types/transaction'
 
 function TransactionRow({ tx }: { tx: Transaction }) {
   const isCredit = tx.type === 'credit'

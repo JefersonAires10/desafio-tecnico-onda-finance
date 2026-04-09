@@ -2,7 +2,6 @@ import { CheckCircle2 } from 'lucide-react'
 import { formatCurrency } from '@/shared/lib/utils'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent } from '@/shared/components/ui/card'
-import type { TransferFormData } from '../schemas/transferSchema'
 import type { TransferSuccessProps } from '@/shared/types/transaction'
 
 export function TransferSuccess({ data, newBalance, onReset }: TransferSuccessProps) {

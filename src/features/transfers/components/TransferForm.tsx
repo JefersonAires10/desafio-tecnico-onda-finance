@@ -19,7 +19,6 @@ export function TransferForm({ balance, onSubmit }: TransferFormProps) {
   const {
     register,
     handleSubmit,
-    reset,
     watch,
     formState: { errors },
   } = useForm<TransferFormData>({
