@@ -10,8 +10,10 @@ const mockUpdateBalance = vi.fn()
 let mockBalance = 5000
 
 vi.mock('@/features/auth', () => ({
-  useAuthStore: (selector: (s: { balance: number; updateBalance: typeof mockUpdateBalance }) => unknown) =>
-    selector({ balance: mockBalance, updateBalance: mockUpdateBalance }),
+  useAuthStore: (selector?: (s: { balance: number; updateBalance: typeof mockUpdateBalance }) => unknown) => {
+    const state = { balance: mockBalance, updateBalance: mockUpdateBalance };
+    return selector ? selector(state) : state;
+  },
 }))
 
 vi.mock('@/shared/components/ui/toaster', () => ({
@@ -50,8 +52,8 @@ describe('Transfer page', () => {
     const { user } = renderTransfer()
     await user.click(screen.getByRole('button', { name: /Continuar/i }))
     await waitFor(() => {
-      expect(screen.getByText(/Nome deve ter ao menos/i)).toBeInTheDocument()
-      expect(screen.getByText(/Chave inválida/i)).toBeInTheDocument()
+      expect(screen.getByText(/Informe o nome do destinatário/i)).toBeInTheDocument()
+      expect(screen.getByText(/Informe a chave PIX/i)).toBeInTheDocument()
       expect(screen.getByText(/Informe o valor/i)).toBeInTheDocument()
     })
   })
