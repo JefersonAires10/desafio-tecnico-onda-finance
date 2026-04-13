@@ -13,7 +13,7 @@ export function DashboardPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-xl font-semibold">
-          Olá, {user?.name.split(' ')[0]} 👋
+          Olá, {user?.name.split(' ')[0]}
         </h1>
         <p className="text-sm text-muted-foreground">
           Ag. {user?.agency} · Conta {user?.accountNumber}

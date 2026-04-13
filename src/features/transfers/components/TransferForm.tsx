@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ArrowRightLeft, Info } from 'lucide-react'
@@ -20,6 +21,7 @@ export function TransferForm({ balance, onSubmit }: TransferFormProps) {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<TransferFormData>({
     resolver: zodResolver(transferSchema),
@@ -29,9 +31,36 @@ export function TransferForm({ balance, onSubmit }: TransferFormProps) {
   })
 
   const amountRaw = watch('amount') ?? ''
-  const amountNum = parseFloat(amountRaw.replace(',', '.')) || 0
+  const amountNum = parseFloat(amountRaw.replace(/\./g, '').replace(',', '.')) || 0
   const isInsufficient = amountNum > balance
   const keyType = watch('keyType')
+
+  useEffect(() => {
+    setValue('recipientKey', '')
+  }, [keyType, setValue])
+
+  const maskCPF = (value: string) => {
+    let v = value.replace(/\D/g, '')
+    if (v.length > 11) v = v.slice(0, 11)
+    return v.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+  }
+
+  const maskPhone = (value: string) => {
+    let v = value.replace(/\D/g, '')
+    if (v.length > 11) v = v.slice(0, 11)
+    return v.replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2')
+  }
+
+  const maskCurrency = (value: string) => {
+    let v = value.replace(/\D/g, '')
+    if (!v) return ''
+    v = parseInt(v, 10).toString().padStart(3, '0')
+    const amount = (parseInt(v, 10) / 100).toFixed(2)
+    return amount.replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.')
+  }
+
+  const { onChange: onKeyChange, ...keyRegister } = register('recipientKey')
+  const { onChange: onAmountChange, ...amountRegister } = register('amount')
 
   return (
     <div className="max-w-md mx-auto space-y-6">
@@ -92,7 +121,14 @@ export function TransferForm({ balance, onSubmit }: TransferFormProps) {
                       keyType === 'phone' ? '(DDD) 99999-9999' :
                         'Chave em formato UUID'
                 }
-                {...register('recipientKey')}
+                {...keyRegister}
+                onChange={(e) => {
+                  let val = e.target.value
+                  if (keyType === 'cpf') val = maskCPF(val)
+                  if (keyType === 'phone') val = maskPhone(val)
+                  e.target.value = val
+                  onKeyChange(e)
+                }}
               />
               {errors.recipientKey && (
                 <p className="text-xs text-destructive">{errors.recipientKey.message}</p>
@@ -105,7 +141,11 @@ export function TransferForm({ balance, onSubmit }: TransferFormProps) {
                 id="amount"
                 placeholder="0,00"
                 inputMode="decimal"
-                {...register('amount')}
+                {...amountRegister}
+                onChange={(e) => {
+                  e.target.value = maskCurrency(e.target.value)
+                  onAmountChange(e)
+                }}
               />
               {errors.amount && (
                 <p className="text-xs text-destructive">{errors.amount.message}</p>

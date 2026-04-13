@@ -19,9 +19,8 @@ function Row({
     <div className="flex items-start justify-between gap-4">
       <span className="text-sm text-muted-foreground shrink-0">{label}</span>
       <span
-        className={`text-sm text-right break-all ${mono ? 'font-mono' : 'font-medium'} ${
-          highlight ? 'text-brand-700 font-semibold text-base' : ''
-        }`}
+        className={`text-sm text-right break-all ${mono ? 'font-mono' : 'font-medium'} ${highlight ? 'text-brand-700 font-semibold text-base' : ''
+          }`}
       >
         {value}
       </span>
@@ -36,7 +35,7 @@ export function TransferConfirm({
   onConfirm,
   onBack,
 }: TransferConfirmProps) {
-  const amount = parseFloat(data.amount.replace(',', '.'))
+  const amount = parseFloat(data.amount.replace(/\./g, '').replace(',', '.'))
 
   return (
     <div className="max-w-md mx-auto space-y-4">
