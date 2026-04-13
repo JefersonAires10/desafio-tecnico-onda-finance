@@ -60,7 +60,7 @@ describe('Transfer page', () => {
 
   it('shows insufficient balance warning', async () => {
     const { user } = renderTransfer()
-    await user.type(screen.getByLabelText(/Valor/i), '9999')
+    await user.type(screen.getByLabelText(/Valor/i), '999999')
     await waitFor(() => {
       expect(screen.getByText(/Saldo insuficiente/i)).toBeInTheDocument()
     })
