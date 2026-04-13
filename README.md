@@ -4,7 +4,7 @@ App bancário simulado desenvolvido como desafio técnico front-end para a JobZ 
 
 ## 🔗 Demo
 
-> [Link de produção aqui após publicação]
+> [https://github.com/JefersonAires10/desafio-tecnico-onda-finance.git]
 
 ---
 
@@ -18,14 +18,9 @@ App bancário simulado desenvolvido como desafio técnico front-end para a JobZ 
 ### Instalação
 
 ```bash
-# Clone o repositório
-git clone https://github.com/seu-usuario/onda-finance.git
+git clone https://github.com/JefersonAires10/desafio-tecnico-onda-finance.git
 cd onda-finance
-
-# Instale as dependências
 npm install
-
-# Rode em modo desenvolvimento
 npm run dev
 ```
 
@@ -33,10 +28,10 @@ Acesse em: `http://localhost:5173`
 
 ### Credenciais de demonstração
 
-| Campo | Valor |
-|-------|-------|
-| E-mail | `joao@ondafinance.com` |
-| Senha | `123456` |
+| Campo  | Valor                  |
+| ------ | ---------------------- |
+| E-mail | joao@ondafinance.com   |
+| Senha  | 123456                 |
 
 ### Testes
 
@@ -47,110 +42,141 @@ npm test
 ### Build de produção
 
 ```bash
-npm run build
-npm run preview
+npm run build && npm run preview
 ```
 
 ---
 
-## 🏗️ Decisões técnicas
+## 🏗️ Arquitetura: Feature-Based
+
+O projeto adota uma **arquitetura orientada a features** (feature-based / vertical slices), onde cada domínio de negócio é uma mini-aplicação autônoma. Isso contrasta com a abordagem layer-based convencional onde os arquivos são agrupados por tipo (pages/, hooks/, services/…).
+
+### Por que feature-based?
+
+| Critério | Layer-based | Feature-based |
+|---|---|---|
+| Coesão | Baixa — arquivos de uma feature espalhados | Alta — tudo relacionado fica junto |
+| Escalabilidade | Difícil — cresce em largura | Fácil — nova pasta por feature |
+| Deleção | Arriscada — dependências cruzadas | Segura — deleta a pasta inteira |
+| Onboarding | Lento — precisa entender a estrutura global | Rápido — lê uma feature de cada vez |
+| Code ownership | Difuso | Claro — times podem ownar features inteiras |
 
 ### Estrutura de pastas
 
 ```
 src/
-├── __tests__/       # Testes Vitest + Testing Library
-├── components/
-│   ├── layout/      # AppLayout (sidebar + header)
-│   └── ui/          # Componentes reutilizáveis (shadcn/ui pattern + CVA)
-├── hooks/           # Custom hooks (React Query)
-├── lib/             # Utilitários (cn, formatCurrency, formatDate)
-├── pages/           # Login, Dashboard, Transfer
-├── router/          # React Router v6 + guards de autenticação
-├── schemas/         # Validação Zod (transferSchema)
-├── services/        # Axios instance + funções mock de API
-└── store/           # Zustand store (autenticação + saldo)
+├── app/                          # Camada de configuração global
+│   ├── layout/AppLayout.tsx      # Shell com sidebar + header
+│   ├── providers/index.tsx       # QueryClient, futuros providers
+│   └── router/index.tsx          # React Router + guards de autenticação
+│
+├── features/                     # Domínios de negócio — cada um autônomo
+│   ├── auth/
+│   │   ├── hooks/useAuth.ts      # signIn / signOut encapsulados
+│   │   ├── pages/LoginPage.tsx
+│   │   ├── services/authService.ts
+│   │   ├── store/authStore.ts    # Zustand + persist
+│   │   └── index.ts              # ← API pública da feature
+│   │
+│   ├── dashboard/
+│   │   ├── components/           # BalanceCard, SummaryCards, TransactionList
+│   │   ├── hooks/useTransactions.ts
+│   │   ├── pages/DashboardPage.tsx
+│   │   ├── services/transactionService.ts
+│   │   └── index.ts              # ← API pública da feature
+│   │
+│   └── transfer/
+│       ├── components/           # TransferForm, TransferConfirm, TransferSuccess
+│       ├── pages/TransferPage.tsx  # Orquestra form → confirm → success
+│       ├── schemas/transferSchema.ts
+│       ├── services/transferService.ts
+│       └── index.ts              # ← API pública da feature
+│
+├── shared/                       # Genuinamente global — sem lógica de negócio
+│   ├── components/ui/            # Button, Card, Input… (shadcn/ui + CVA)
+│   ├── lib/utils.ts              # cn(), formatCurrency(), formatDate()
+│   └── types/index.ts            # User, Transaction
+│
+└── __tests__/transfer.test.tsx   # 5 testes Vitest + Testing Library
 ```
 
-### Stack e justificativas
+### O padrão index.ts (API pública da feature)
+
+Cada feature expõe apenas o que outras partes precisam. O resto é detalhe de implementação:
+
+```ts
+// features/transfer/index.ts  ← só isso é importável de fora
+export { TransferPage }    from './pages/TransferPage'
+export { transferSchema }  from './schemas/transferSchema'
+export type { TransferFormData } from './schemas/transferSchema'
+
+// Nunca exportado (detalhe interno):
+// TransferForm, TransferConfirm, TransferSuccess, transferService
+```
+
+O router consome apenas barrel exports:
+
+```ts
+import { LoginPage, useAuthStore } from '@/features/auth'
+import { DashboardPage }           from '@/features/dashboard'
+import { TransferPage }            from '@/features/transfer'
+```
+
+---
+
+## ⚙️ Stack e decisões técnicas
 
 | Tecnologia | Decisão |
 |---|---|
-| **React 18 + TypeScript** | Tipagem estática elimina classes inteiras de bugs em runtime |
-| **Vite** | Build tool extremamente rápido com HMR eficiente |
-| **Tailwind + CVA** | Tailwind garante consistência visual; CVA permite variantes tipadas de componentes sem duplicar classes |
-| **shadcn/ui + Radix** | Componentes acessíveis (ARIA, focus management, keyboard navigation) sem acoplamento a uma biblioteca de UI fechada — código fica no projeto |
-| **React Router v6** | Aninhamento de rotas limpo; guards de autenticação com `<Outlet>` sem rerenders desnecessários |
-| **React Query v5** | Gerenciamento de estado assíncrono com cache, refetch e skeleton states sem boilerplate |
-| **Zustand** | Store global mínimo para sessão e saldo; `persist` middleware faz a persistência no localStorage sem configuração extra |
-| **React Hook Form + Zod** | Formulários performáticos (re-render só no campo alterado); Zod garante schema único de validação compartilhável entre front e back |
-| **Axios** | Interceptors centralizados para injeção de token e tratamento de erros HTTP |
-| **Vitest** | Mesmo ecossistema do Vite; configuração zero para testes unitários e de componente |
-
-### Fluxo de autenticação
-
-1. Usuário preenche o formulário de login (validado com Zod)
-2. `mockLogin()` simula latência de rede (800ms) e valida credenciais
-3. Em caso de sucesso, `useAuthStore` (Zustand + `persist`) salva `user` e `balance` no `localStorage`
-4. O router redireciona para `/dashboard`; rotas privadas checam `isAuthenticated` via `PrivateRoute`
-5. Logout limpa o store e redireciona para `/login`
-
-### Fluxo de transferência
-
-O formulário de transferência usa um estado de 3 etapas (`form → confirm → success`) para garantir que o usuário revise os dados antes de confirmar, simulando o fluxo de apps bancários reais.
-
-### Mock de API
-
-Todas as chamadas de API são simuladas localmente em `src/services/api.ts` com delays artificiais para simular latência de rede. Em produção, bastaria apontar o `baseURL` do Axios para a API real e remover as funções mock.
+| React 18 + TypeScript | Tipagem estática elimina classes inteiras de bugs em runtime |
+| Vite | Build extremamente rápido com HMR eficiente |
+| Tailwind + CVA | Consistência visual; CVA permite variantes tipadas sem duplicar classes |
+| shadcn/ui + Radix | Componentes acessíveis (ARIA, focus, keyboard) sem acoplamento a biblioteca fechada |
+| React Router v6 | Guards de autenticação com Outlet sem rerenders desnecessários |
+| React Query v5 | Cache, refetch e skeletons sem boilerplate; queryKey por feature evita colisões |
+| Zustand + persist | Store mínimo; persist serializa sessão no localStorage sem configuração extra |
+| React Hook Form + Zod | Formulários performáticos (re-render só no campo alterado); schema Zod reutilizável |
+| Axios | Interceptors centralizados para token e erros HTTP |
+| Vitest | Mesmo ecossistema do Vite; zero configuração extra |
 
 ---
 
 ## 🔒 Segurança (discussão técnica)
 
-> **Nota:** Estas são medidas que seriam adotadas em um ambiente de produção real. O projeto atual é uma simulação e não implementa estas proteções.
+> Nota: estas são medidas que seriam adotadas em produção. O projeto atual é uma simulação.
 
-### Proteção contra engenharia reversa
-
-| Ameaça | Mitigação |
-|---|---|
-| Leitura do bundle JS | **Ofuscação de código** com ferramentas como `javascript-obfuscator` ou Terser com configurações agressivas no build |
-| Extração de segredos do frontend | **Nunca armazenar chaves de API, tokens de acesso de longa duração ou segredos no código cliente.** Toda lógica sensível fica no backend |
-| Análise do tráfego de rede | **TLS (HTTPS) obrigatório** em todos os ambientes; HSTS habilitado no servidor |
-| Tokens expostos no localStorage | Preferir **HttpOnly cookies** para tokens de sessão (inacessíveis via JS) e usar **refresh token rotation** |
-| Endpoints descobertos via bundle | Proxied API em domínio próprio; evitar expor URLs internas de microserviços |
-
-### Proteção contra vazamento de dados
+### Contra engenharia reversa
 
 | Ameaça | Mitigação |
 |---|---|
-| XSS (Cross-Site Scripting) | React escapa conteúdo por padrão; evitar `dangerouslySetInnerHTML`; Content Security Policy (CSP) no servidor |
-| CSRF | Tokens CSRF em formulários; `SameSite=Strict` nos cookies de sessão |
-| Dados sensíveis no localStorage | Criptografia dos dados persistidos (ex: `crypto-js`); limpeza automática ao logout |
-| Dados em trânsito | TLS 1.3; certificate pinning em apps mobile |
-| Dados em repouso (backend) | Criptografia de dados sensíveis (AES-256); mascaramento de dados em logs |
-| Acesso não autorizado | JWT de curta duração (15min) + refresh token rotation; rate limiting por IP e por conta |
-| Enumeração de contas | Mensagens de erro genéricas no login (não revelar se e-mail existe) |
-| Exposição de PII | Mascarar CPF/conta em tela (ex: `***.***.***-00`); logs sem dados pessoais |
+| Leitura do bundle JS | Ofuscação com javascript-obfuscator ou Terser agressivo no build |
+| Extração de segredos | Nunca armazenar chaves no código cliente — lógica sensível fica no backend |
+| Análise de tráfego | TLS obrigatório + HSTS no servidor |
+| Tokens expostos | HttpOnly cookies + refresh token rotation |
+| Endpoints descobertos | API proxied em domínio próprio |
+
+### Contra vazamento de dados
+
+| Ameaça | Mitigação |
+|---|---|
+| XSS | CSP no servidor; evitar dangerouslySetInnerHTML |
+| CSRF | Tokens CSRF + SameSite=Strict nos cookies |
+| localStorage | Criptografia dos dados persistidos; limpeza no logout |
+| Dados em trânsito | TLS 1.3 + certificate pinning mobile |
+| Acesso não autorizado | JWT 15 min + refresh token rotation + rate limiting |
+| Enumeração de contas | Mensagens de erro genéricas no login |
 
 ---
 
 ## 🔮 Melhorias futuras
 
-- [ ] **Paginação e filtros** nas transações (por data, categoria, tipo)
-- [ ] **Gráfico de gastos** por categoria (recharts)
-- [ ] **Extrato exportável** em PDF ou CSV
-- [ ] **Dark mode** com `next-themes` / CSS variables
-- [ ] **PWA** para instalação como app mobile
-- [ ] **i18n** com `react-i18next`
-- [ ] **Testes E2E** com Playwright (fluxo completo login → transferência)
-- [ ] **Storybook** para documentação dos componentes
-- [ ] **React Query Devtools** em modo development
-- [ ] **Infinite scroll** no extrato de transações
-- [ ] **Notificações push** para transações em tempo real (WebSockets)
-- [ ] **Autenticação biométrica** via Web Authentication API
+- [ ] Paginação e filtros nas transações
+- [ ] Gráfico de gastos por categoria (recharts)
+- [ ] Extrato exportável em PDF/CSV
+- [ ] Dark mode com CSS variables
+- [ ] PWA para instalação mobile
+- [ ] Testes E2E com Playwright
+- [ ] Storybook para documentação dos componentes shared/
+- [ ] Notificações push via WebSockets
 
----
 
-## 📄 Licença
-
-MIT
